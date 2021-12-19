@@ -4,52 +4,39 @@ import android.util.Log
 import com.example.tictactoe.data.Mail
 import com.example.tictactoe.data.model.GameState
 import com.example.tictactoe.data.model.Move
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.actor
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
 
-class Player(val id: Int) {
-    lateinit var gameState: GameState
+class Player(private val id: Int) {
 
-    fun makeMove(gameState: GameState, move: Move) = runBlocking<Unit> {
-        val channel = basicActor()
-        channel.send(Mail.SendMove(gameState, move))
-
-        //sleep for 1 second and get state
-        delay(1000)
-
-        val deferred = CompletableDeferred<GameState>()
-        channel.send(Mail.GetGameState(deferred))
-
-        while(gameState.availableMoves.isNotEmpty()){
-
-        }
-
-        deferred.await()
-
-        channel.close()
-    }
-
-    fun makeMovev1(player1: Player, player2: Player, gameState: GameState) = runBlocking<Unit> {
+    fun play(nextPlayer: Player, coordinator: Coordinator, gameState: GameState) = runBlocking<Unit>(CoroutineName("Actor$id")) {
         val channel = basicActor()
         channel.send(Mail.Send(gameState))
 
-        //sleep for 1 second and get state
+        //sleep for 1 second
         delay(1000)
 
         val deferred = CompletableDeferred<GameState>()
         channel.send(Mail.GetGameState(deferred))
 
+        Log.e("@Coroutine Name", Thread.currentThread().name)
 
-        deferred.await()
+        val newGameState = deferred.await()
+
+        coordinator.report(newGameState)
+        next(nextPlayer, coordinator, newGameState)
 
         channel.close()
     }
 
+    private fun next(nextPlayer: Player, coordinator: Coordinator, newGameState: GameState){
+        while(newGameState.availableMoves.isNotEmpty()){
+            nextPlayer.play(this, coordinator, newGameState)
+        }
+    }
+
     private fun CoroutineScope.basicActor() = actor<Mail> {
-        var newGameState=GameState(Move(0,0), arrayListOf())
+        var newGameState=GameState(Move(0,0), -1, arrayListOf())
 
         for (message in channel) {
             when(message) {
@@ -58,34 +45,27 @@ class Player(val id: Int) {
                     val availableMoves = gameState.availableMoves
                     val previousMove = gameState.previousMove
 
-                    while(availableMoves.isNotEmpty()){
+                    if(availableMoves.isNotEmpty()){
                         //make a new move based on previousMove
-                        val newMove = Move(0,1)
+                        val newMove = predictNewPossibleMove(availableMoves, previousMove)
 
                         gameState.availableMoves.remove(newMove)
                         gameState.previousMove = newMove
+                        gameState.currentPlayerId = id
 
                         newGameState = gameState
                     }
-
-//                    for(move: Move in gameState.availableMoves){
-//                        if(move.x != message.move.x && move.y != message.move.y){
-//                            newAvailableMove.add(move)
-//                        }
-//                    }
-
-//                    newGameState = GameState((Move(message.move.x, message.move.y)), newAvailableMove)
                 }
 
                 is Mail.GetGameState -> {
                     message.gameState.complete(newGameState)
-//                    gameState = newGameState
                 }
             }
         }
     }
 
-    fun getState(): GameState {
-        return this.gameState
+    private fun predictNewPossibleMove(availableMoves : List<Move>, previousMove: Move): Move{
+        return availableMoves[0]
     }
+
 }

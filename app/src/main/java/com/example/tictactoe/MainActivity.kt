@@ -1,6 +1,5 @@
 package com.example.tictactoe
 
-import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -17,7 +16,6 @@ import androidx.compose.ui.unit.dp
 import com.example.tictactoe.data.model.GameState
 import com.example.tictactoe.data.model.Move
 import com.example.tictactoe.domain.Coordinator
-import com.example.tictactoe.domain.GameEngine
 import com.example.tictactoe.domain.Player
 import com.example.tictactoe.presentation.component.OnMoveImpl
 import com.example.tictactoe.presentation.theme.TicTacToeTheme
@@ -25,16 +23,15 @@ import com.example.tictactoe.utils.IGameState
 import kotlinx.coroutines.*
 
 class MainActivity : ComponentActivity() {
-    lateinit var context: Context
-
     lateinit var gameState: GameState
 
-    val onMoveList = ArrayList<OnMoveImpl>()
+    private val onMoveList = ArrayList<OnMoveImpl>()
+    private var playerSwitched = true
 
     @DelicateCoroutinesApi
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        context = this
+        System.setProperty("kotlinx.coroutines.debug", "on" )
 
         setContent {
             TicTacToeTheme {
@@ -60,8 +57,7 @@ class MainActivity : ComponentActivity() {
                         NodeButton()
 
                         if(possibleMove.size == (matrix.size*matrix.size)) {
-                            gameState = GameState(Move(0,0), possibleMove)
-
+                            gameState = GameState(Move(0,0), 1, possibleMove)
                             initGame()
                         }
                     }
@@ -72,13 +68,19 @@ class MainActivity : ComponentActivity() {
 
     @DelicateCoroutinesApi
     private fun initGame(){
-        Log.e("onMoveList", "${onMoveList.size}")
         GlobalScope.launch (Dispatchers.IO) { startGame(
             object : IGameState{
                 override fun onMoveMade(gameState: GameState) {
+                    //Log.e("onMoveMade", "$gameState")
+
+                    playerSwitched = !playerSwitched
+                    val row = gameState.previousMove.x
+                    val col = gameState.previousMove.y
+                    val position = (row * 9)+col
+                    Log.e("onMoveMade", "$playerSwitched")
+
                     GlobalScope.launch(Dispatchers.Main){
-                        Log.e("onMoveMade", "$gameState")
-                        onMoveList[0].setMove()
+                        onMoveList[position].setMove()
                     }
                 }
 
@@ -93,9 +95,8 @@ class MainActivity : ComponentActivity() {
     private fun startGame(iGameState : IGameState){
         val player1 = Player(1)
         val player2 = Player(2)
-        val coordinator = Coordinator(3)
-
-        GameEngine(player1, player2, coordinator, gameState ,iGameState).start()
+        val coordinator = Coordinator(iGameState)
+        player1.play(player2, coordinator, gameState)
     }
 
     @Composable
@@ -109,8 +110,15 @@ class MainActivity : ComponentActivity() {
 
         onMoveList.add(onMoveImpl)
 
+        var color = Color.Gray
+
+        if (selected.value && !playerSwitched)
+            color = Color.Blue
+        else if(selected.value && playerSwitched)
+            color = Color.Red
+
         Button(colors = ButtonDefaults.buttonColors(
-            backgroundColor = if (selected.value) Color.Blue else Color.Gray),
+            backgroundColor = color),
             onClick = { selected.value = !selected.value },
             modifier = Modifier
                 .padding(7.dp)
