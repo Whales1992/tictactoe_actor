@@ -5,5 +5,4 @@ import com.example.tictactoe.domain.Player
 
 interface IGameState {
     fun onMoveMade(gameState: GameState)
-    fun onGameOver(winner: Player)
 }

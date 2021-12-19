@@ -1,7 +1,8 @@
 package com.example.tictactoe
 
+import android.annotation.SuppressLint
 import android.os.Bundle
-import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -28,6 +29,8 @@ class MainActivity : ComponentActivity() {
     private val onMoveList = ArrayList<OnMoveImpl>()
     private var playerSwitched = true
 
+    private val matrixSize = 3 //Change matrix from here
+
     @DelicateCoroutinesApi
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,32 +41,33 @@ class MainActivity : ComponentActivity() {
                 // A surface container using the 'background' color from the theme
                 Surface(color = MaterialTheme.colors.background) {
                     CreateBoard()
+                    StartButton()
                 }
             }
         }
     }
 
     @DelicateCoroutinesApi
+    @SuppressLint("CoroutineCreationDuringComposition")
     @Composable
     fun CreateBoard() {
-        val matrix = Array(9){it}
-        val possibleMove = ArrayList<Move>()
+            val matrix = Array(matrixSize){it}
+            val possibleMove = ArrayList<Move>()
 
-        LazyColumn {
-            itemsIndexed(matrix) { _, row ->
-                LazyRow {
-                    itemsIndexed(matrix) { _, column ->
-                        possibleMove.add(Move(row, column))
-                        NodeButton()
+            LazyColumn {
+                itemsIndexed(matrix) { _, row ->
+                    LazyRow {
+                        itemsIndexed(matrix) { _, column ->
+                            possibleMove.add(Move(row, column))
+                            NodeButton()
 
-                        if(possibleMove.size == (matrix.size*matrix.size)) {
-                            gameState = GameState(Move(0,0), 1, possibleMove)
-                            initGame()
+                            if (possibleMove.size == (matrix.size * matrix.size)) {
+                                gameState = GameState(false, Move(0, 0), 1, possibleMove)
+                            }
                         }
                     }
                 }
             }
-        }
     }
 
     @DelicateCoroutinesApi
@@ -71,24 +75,23 @@ class MainActivity : ComponentActivity() {
         GlobalScope.launch (Dispatchers.IO) { startGame(
             object : IGameState{
                 override fun onMoveMade(gameState: GameState) {
-                    //Log.e("onMoveMade", "$gameState")
 
                     playerSwitched = !playerSwitched
                     val row = gameState.previousMove.x
                     val col = gameState.previousMove.y
-                    val position = (row * 9)+col
-                    Log.e("onMoveMade", "$playerSwitched")
+                    val position = (row * matrixSize)+col
+                    val winner = gameState.foundAWinner
 
                     GlobalScope.launch(Dispatchers.Main){
                         onMoveList[position].setMove()
+
+                        if(winner)
+                            Toast.makeText(this@MainActivity, "Player ${gameState.currentPlayerId} is the Winner !!!", Toast.LENGTH_LONG).show()
                     }
                 }
-
-                override fun onGameOver(winner: Player) {
-                    TODO("Not yet implemented")
-                }
-            }
-        ) }
+              }
+            )
+        }
     }
 
 
@@ -121,11 +124,29 @@ class MainActivity : ComponentActivity() {
             backgroundColor = color),
             onClick = { selected.value = !selected.value },
             modifier = Modifier
-                .padding(7.dp)
-                .width(30.dp)
-                .height(30.dp),
+                    .padding(5.dp)
+                    .width(30.dp)
+                    .height(30.dp),
             enabled = true,
 
             ) {}
+    }
+
+    @DelicateCoroutinesApi
+    @Composable
+    fun StartButton() {
+        Button(colors = ButtonDefaults.buttonColors(
+            backgroundColor = Color.Green),
+            onClick = { initGame() },
+            modifier = Modifier
+                    .padding(7.dp)
+                    .padding(top = 500.dp)
+                    .width(200.dp)
+                    .height(50.dp),
+            enabled = true,
+
+            ) {
+            Text(text = "Start Game")
+        }
     }
 }
