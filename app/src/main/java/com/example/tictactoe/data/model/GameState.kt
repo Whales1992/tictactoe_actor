@@ -1,3 +1,3 @@
 package com.example.tictactoe.data.model
 
-data class GameState(private val availableMoves : List<Move>)
+data class GameState(var previousMove: Move, val availableMoves : ArrayList<Move>)

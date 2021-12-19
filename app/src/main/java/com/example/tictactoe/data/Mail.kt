@@ -5,7 +5,7 @@ import com.example.tictactoe.data.model.Move
 import com.example.tictactoe.domain.Player
 import kotlinx.coroutines.CompletableDeferred
 
-sealed class Message {
-    class SendMove(val player : Player, val move: Move) : Message()
-    class GetGameState(val gameState: CompletableDeferred<GameState>) : Message()
+sealed class Mail {
+    class Send(val gameState: GameState) : Mail()
+    class GetGameState(val gameState: CompletableDeferred<GameState>) : Mail()
 }
